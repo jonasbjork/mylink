@@ -1,0 +1,99 @@
+<?php
+
+function mylink_install() {
+  drupal_install_schema('mylink');
+}
+
+function mylink_schema() {
+
+  $schema['mylink_url'] = array(
+    'description' => 'Stores url info for mylink',
+	'fields' => array(
+	  'id' => array(
+	    'type' => 'serial',
+		'unsigned' => TRUE,
+		'not null' => TRUE,		
+	  ),
+	  'url' => array(
+	    'type' => 'varchar',
+		'length' => 255,
+		'not null' => TRUE,
+		'default' => '',
+      ),
+	  'shorturl' => array(
+	    'type' => 'varchar',
+		'length' => 10,
+		'not null' => TRUE,
+		'default' => '',
+      ),
+	  'posted' => array(
+	    'type' => 'int',
+		'unsigned' => TRUE,
+		'not null' => TRUE,
+		'default' => 0,
+	  ),
+	  'deleted' => array(
+	    'type' => 'int',
+		'unsigned' => TRUE,
+		'not null' => TRUE,
+		'default' => 0,
+	  ),
+	  'clicks' => array(
+	    'type' => 'int',
+		'unsigned' => TRUE,
+		'not null' => TRUE,
+		'default' => 0,
+	  ),
+	  'ip_addr' => array(
+	    'type' => 'varchar',
+		'length' => 15,
+	  ),
+	),
+	'primary key' => array('id'),	
+  );
+  
+  $schema['mylink_clicks'] = array(
+    'fields' => array(
+	  'id' => array(
+	    'type' => 'serial',
+		'unsigned' => TRUE,
+		'not null' => TRUE,
+	  ),
+	  'url_id' => array(
+	    'type' => 'int',
+		'unsigned' => TRUE,
+	  ),
+	  'ip_addr' => array(
+	    'type' => 'varchar',
+		'length' => 15,
+	  ),
+	  'clicked' => array(
+	    'type' => 'int',
+		'unsigned' => TRUE,
+		'default' => 0,
+	  ),
+	),
+	'primary key' => array('id'),
+  );
+  
+  $schema['mylink_tags'] = array(
+    'fields' => array(
+	  'id' => array(
+	    'type' => 'serial',
+		'unsigned' => TRUE,
+		'not null' => TRUE,
+	  ),
+	  'url_id' => array(
+	    'type' => 'int',
+		'unsigned' => TRUE,
+	  ),
+	  'tag' => array(
+	    'type' => 'varchar',
+		'length' => 200,
+	  ),
+	),
+	'primary key' => array('id'),
+  );
+	return $schema;	
+}
+

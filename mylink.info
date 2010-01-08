@@ -1,0 +1,5 @@
+; $Id$
+name = My Link
+description = My link creates short url:s
+core = 6.x
+version = 0.1

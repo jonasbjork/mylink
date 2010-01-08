@@ -1,0 +1,255 @@
+<?php
+/**
+  My Link 0.1
+  Written by Jonas Björk <jonas@jonasbjork.net> 2009-07-03
+  
+  Licensed under European Union Public License (EUPL) version 1.1
+  that can be found at http://ec.europa.eu/idabc/eupl 
+*/
+include_once './includes/bootstrap.inc';
+drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
+
+define("MYLINK_ROOT", "http://mylink.se/");
+
+//Drupal Functions
+
+function mylink_help($section='') {
+
+  $output = '';
+
+  switch ($section) {
+    case "admin/help#mylink":
+      $output = '<p>'.  t("My link creates shorter URL:s."). '</p>';
+      break;
+  }
+
+  return $output;
+}
+
+function mylink_perm() {
+  return array('access mylink content');
+}
+
+
+function mylink_menu() {
+
+  $items = array();
+
+  $items['mylink'] = array(
+    'title' => t('My link'),
+    'page callback' => 'mylink_all',
+    'access arguments' => array('access mylink content'),
+  );
+
+  $items['mylink/api'] = array(
+    'title' => t('My link API'),
+    'page callback' => 'mylink_api_info',
+    'access arguments' => array('access mylink content'),
+  );
+  
+
+  return $items;
+
+}
+
+
+
+function mylink_all() {
+
+  //module_rebuild_cache();
+  //menu_rebuild();
+
+  if(arg(1) != '') {
+    $url = check_plain(arg(1));
+    if(db_result(db_query("SELECT id FROM {mylink_url} WHERE shorturl='%s' LIMIT 1", $url))) {
+	  // länken finns, skicka användaren vidare
+	  $r = db_fetch_object(db_query("SELECT id,url FROM {mylink_url} WHERE shorturl='%s' LIMIT 1", $url));
+	  db_query("UPDATE {mylink_url} SET clicks = clicks + 1 WHERE shorturl='%s' LIMIT 1", $url);
+	  db_query("INSERT INTO {mylink_clicks} (url_id, ip_addr, clicked) VALUES('%d','%s',unix_timestamp())", check_plain($r->id), $_SERVER['REMOTE_ADDR']);
+	  
+	  drupal_goto($r->url);
+	  
+	} else {
+	  // TODO: fixa egen felsida :)
+	  drupal_not_found();
+	  exit();
+	}
+  } else {
+    $output = mylink_index();
+  }
+  return $output;
+}
+
+function mylink_api_info() {
+
+ $output = "<p>Nu finns följande API-anrop. Alla anrop skall göras med HTTP POST till <strong>http://mylink.se/xmlrpc.php</strong> .</p>";
+ $output .= "<h2>mylink.newLink</h2>";
+ $output .= "<p>Med <strong>mylink.newLink</strong> kan du skapa nya korta länkar genom att göra ett xml-rpc anrop. Exempel på ditt anrop följer:</p>";
+ $output .= <<< TEST
+
+<pre>&lt;?xml version="1.0"?&gt;
+&lt;methodCall&gt;
+  &lt;methodName&gt;mylink.newLink&lt;/methodName&gt;
+  &lt;params&gt;
+     &lt;param&gt;&lt;value&gt;&lt;string&gt;http://www.jagtestar.com&lt;/string&gt;&lt;/value&gt;&lt;/param&gt;
+  &lt;/params&gt;
+&lt;/methodCall&gt;</pre>
+TEST;
+
+  $output .= "<p>Anropet ger följande svar:</p>";
+
+$output .= "<pre>";
+$output .= "
+&lt;?xml version=\"1.0\"?&gt;
+ 
+ &lt;methodResponse&gt;
+   &lt;params&gt;
+   &lt;param&gt;
+     &lt;value&gt;&lt;array&gt;&lt;data&gt;
+   &lt;value&gt;&lt;struct&gt;
+   &lt;member&gt;&lt;name&gt;url&lt;/name&gt;&lt;value&gt;&lt;string&gt;http://mylink.se/DINLÄNK&lt;/string&gt;&lt;/value&gt;&lt;/member&gt;
+ &lt;/struct&gt;&lt;/value&gt;
+ &lt;/data&gt;&lt;/array&gt;&lt;/value&gt;
+   &lt;/param&gt;
+   &lt;/params&gt;
+ &lt;/methodResponse&gt;
+
+";
+
+$output .= "</pre>";
+
+  $output .= "<p>Där <strong>http://mylink.se/DINLÄNK</strong> är den länk du kan använda.</p>";
+
+  return $output;
+
+}
+
+function mylink_index() {
+	global $user;
+	
+	$output = '<p><strong>My Link</strong> är en tjänst som skapar kortare länkar åt dig som du kan använda för att skicka i Windows Live Messenger, publicera på Facebook eller skicka i e-post. Med <strong>My Link</strong> får du också tillgång till information om hur många som använt din länk, varifrån de kommer och när de använt länken.</p>';
+	
+	$output .= '<p>Att skapa en länk på <strong>My Link</strong> är enkelt och det är helt gratis. Du behöver inte ens registera dig!</p>';
+	
+	$output .= '<h2>Skapa länk</h2>';
+	
+	$output .= drupal_get_form('mylink_post_link_form');
+ 
+    $output .= "<h2>Hur fungerar det?</h2>";
+    $output .= '<p>En lång länk kan till exempel vara:<br />';
+    $output .= '<pre>http://www.hitta.se/printMap.aspx?cx=1305993&cy=6217828&maptype=0
+ &z=8&points=%5B%7B%22url%22%3A%7B%22image%22%3A%22http%3A%2F%2Fwww.hitta.se%2
+ Fimages%2Fpoint.png%22%2C%22anchor%22%3A%7B%22x%22%3A10%2C%22y%22%3A11%7D%2C%
+ 22infoBoxAnchorTop%22%3A%7B%22x%22%3A10%2C%22y%22%3A-2%7D%2C%22infoBoxAnchorB
+ ottom%22%3A%7B%22x%22%3A10%2C%22y%22%3A25%7D%2C%22size%22%3A%7B%22x%22%3A25%2
+ C%22y%22%3A25%7D%7D%2C%22north%22%3A6217828%2C%22east%22%3A1305993%2C%22text%
+ 22%3A%22TriNix%2520AB%253Cbr%2F%253ETelefon%253A%2520042-127800%253Cbr%2F%253
+ EKullagatan%252050%253Cbr%2F%253E252%252020%2520HELSINGBORG%22%7D%5D</pre>';
+ 
+    $output .= '</p><p>Efter att använt My Link på den kan länken se ut så här: http://mylink.se/test</p>';
+	
+	$output .= '<p>Nu kan du använda den kortare länken för att komma till sidan med
+	  den långa länken. Smart va?</p>';
+ 	
+	return $output;
+}
+
+function mylink_post_link_form($form_state) {
+
+  $form['link'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Länk',
+	'#size' => 60,
+	'#description' => 'Ange länken du vill skapa här.',
+  );
+
+  $form['linksubmit'] = array(
+    '#type' => 'submit',
+	'#value' => 'Skapa',
+  );
+  
+  return $form;
+}
+
+function mylink_post_link_form_validate($form, &$form_state) {
+  if($form_state['values']['link'] == '') {
+    form_set_error('', 'Du måste ange en länk!');
+  }
+  // TODO: Kolla med regexp att det är en länk (http:,https:. ... .)
+}
+
+function mylink_post_link_form_submit($form, &$form_state) {
+
+	$url = _create_link($form_state['values']['link']);
+	drupal_set_message("Din länk skapades: <a href='".MYLINK_ROOT.$url."'>".MYLINK_ROOT.$url."</a>");
+	drupal_goto(MYLINK_ROOT);
+}
+
+/**
+	Skapa och kontrollera så att den korta länken inte finns redan
+	Returnerar en kortlänk
+*/
+function _create_short_link() {
+
+  while(true) {
+    $url = check_plain(_create_short());
+    $r = db_query("SELECT id FROM {mylink_url} WHERE shorturl='%s' LIMIT 1", $url);
+    if( db_result($r) == 0 ) {
+	  break;
+    }
+  }
+	return $url;
+
+}
+
+/**
+	Lägger till den nya länken i databasen.
+*/
+function _create_link($longLink) {
+	$longLink =	check_plain($longLink);
+	$url = _create_short_link();
+  
+	db_query("INSERT INTO {mylink_url} (url,shorturl,posted,ip_addr) VALUES('%s','%s',unix_timestamp(),'%s')", $longLink, $url, check_plain($_SERVER['REMOTE_ADDR']));
+	
+	return $url;
+
+} 
+
+function _create_short() {
+
+  $s = '';
+  for($i=0; $i<rand(4,4); $i++)
+  {
+    $num = rand(48,122);
+	if( ($num > 48 && $num < 57) || ($num > 65 && $num < 90) || ($num > 97 && $num < 122))
+	{
+	  $s .= chr($num);
+	} else {
+	  $i--;
+	}
+  }
+
+  return $s;
+}
+
+
+function mylink_xmlrpc() {
+  return array(
+    array(
+      'mylink.newLink',
+      'mylink_post_new_link',
+      array('array', 'string'),
+      t('Creates a new short URL.'))
+	);
+}
+function mylink_post_new_link($longLink) {
+
+	$r = array();
+	//$r[] = array( 'url' => 'http://dinmamma.com/');
+
+	$url = _create_link($longLink);
+	$r[] = array( 'url' => MYLINK_ROOT.$url );
+
+	return $r;
+
+}
